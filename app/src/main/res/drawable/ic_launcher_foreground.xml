@@ -1,0 +1,72 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <!-- Sfondo pieno viola -->
+    <path
+        android:fillColor="#7B4DD6"
+        android:pathData="M0,0h512v512h-512z" />
+
+    <!-- Piatto torta -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M128,348h256v20h-256z" />
+
+    <!-- Base torta -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M144,251h224v95h-224z" />
+
+    <!-- Glassa ondulata -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M144,248
+            L368,248
+            L368,220
+            C344,235 320,235 296,220
+            C272,205 248,205 224,220
+            C200,235 176,235 152,220
+            C148,222 146,224 144,225
+            Z" />
+
+    <!-- Candela sinistra -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M180,188h20v52h-20z" />
+    <!-- Candela centrale -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M246,188h20v52h-20z" />
+    <!-- Candela destra -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M312,188h20v52h-20z" />
+
+    <!-- Fiamma sinistra -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M190,168
+            C184,160 184,148 190,142
+            C196,148 196,160 190,168
+            Z" />
+    <!-- Fiamma centrale -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M256,168
+            C250,160 250,148 256,142
+            C262,148 262,160 256,168
+            Z" />
+    <!-- Fiamma destra -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M322,168
+            C316,160 316,148 322,142
+            C328,148 328,160 322,168
+            Z" />
+</vector>
