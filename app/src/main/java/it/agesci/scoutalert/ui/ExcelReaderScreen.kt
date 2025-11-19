@@ -1,5 +1,6 @@
 package it.agesci.scoutalert.ui
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -55,7 +56,7 @@ fun ExcelReaderScreen() {
 
     // notification preferences
     val prefs = remember {
-        context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
     var unitsWithNotifications by remember {
         mutableStateOf(
@@ -105,13 +106,12 @@ fun ExcelReaderScreen() {
         )
         Log.d(TAG, "UI headers  -> ${currentTable.headers.joinToString()}")
 
-        val entries = currentTable.rows.mapNotNull { row ->
+        val entries = currentTable.rows.map { row ->
             val lastNameRaw = row.cells.getOrNull(lastNameIndex).orEmpty().trim()
             val firstNameRaw = row.cells.getOrNull(firstNameIndex).orEmpty().trim()
-            if (firstNameRaw.isEmpty() && lastNameRaw.isEmpty()) return@mapNotNull null
 
             val birthRaw = row.cells.getOrNull(birthDateIndex).orEmpty()
-            val date = parseBirthDate(birthRaw) ?: return@mapNotNull null
+            val date = parseBirthDate(birthRaw)
 
             val unitRaw = unitIndex?.let { row.cells.getOrNull(it) }
             val unitNorm = unitRaw?.let { normalizeUnitName(it) }
@@ -119,11 +119,15 @@ fun ExcelReaderScreen() {
             BirthdayEntry(
                 firstName = firstNameRaw,
                 lastName = lastNameRaw,
-                fullName = "$firstNameRaw $lastNameRaw",
+                fullName = listOf(firstNameRaw, lastNameRaw)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+                    .ifEmpty { "Senza nome" },
+
                 unit = unitNorm,
-                day = date.dayOfMonth,
-                month = date.monthValue,
-                year = date.year
+                day = date?.dayOfMonth ?: 0,
+                month = date?.monthValue ?: 0,
+                year = date?.year
             )
         }
 
@@ -397,6 +401,14 @@ fun ExcelReaderScreen() {
                 saveBirthdaysToPrefs(context, updated)
                 isEditorOpen = false
                 editingIndex = null
+            },
+            onDelete = { entry ->
+                val updated = birthdayEntries.toMutableList()
+                updated.remove(entry)
+                birthdayEntries = updated
+                saveBirthdaysToPrefs(context, updated)
+                isEditorOpen = false
+                editingIndex = null
             }
         )
     }
@@ -408,10 +420,11 @@ fun ExcelReaderScreen() {
 @Composable
 fun BirthdayEditorDialog(
     title: String,
-    availableUnits: List<String>,   // not currently in use, but open to suggestions
+    availableUnits: List<String>,
     initial: BirthdayEntry?,
     onDismiss: () -> Unit,
-    onSave: (BirthdayEntry) -> Unit
+    onSave: (BirthdayEntry) -> Unit,
+    onDelete: (BirthdayEntry) -> Unit
 ) {
     var firstName by remember { mutableStateOf(initial?.firstName ?: "") }
     var lastName by remember { mutableStateOf(initial?.lastName ?: "") }
@@ -514,8 +527,20 @@ fun BirthdayEditorDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annulla")
+            Row {
+                // ❌ elimina
+                if (initial != null) {
+                    TextButton(onClick = {
+                        onDelete(initial)
+                    }) {
+                        Text("Elimina", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+
+                // 🔙 annulla
+                TextButton(onClick = onDismiss) {
+                    Text("Annulla")
+                }
             }
         }
     )

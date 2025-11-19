@@ -432,7 +432,8 @@ fun BirthdayListCard(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp),
+                        .heightIn(max = 400.dp)
+                        .padding(bottom = 23.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(persons) { person ->
