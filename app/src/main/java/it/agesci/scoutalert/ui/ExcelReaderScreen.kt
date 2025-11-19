@@ -30,6 +30,7 @@ import it.agesci.scoutalert.excel.parseExcelFromUri
 import it.agesci.scoutalert.notifications.BirthdayScheduler
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Suppress("KotlinConstantConditions")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,8 +109,8 @@ fun ExcelReaderScreen() {
         Log.d(TAG, "UI headers  -> ${currentTable.headers.joinToString()}")
 
         val entries = currentTable.rows.map { row ->
-            val lastNameRaw = row.cells.getOrNull(lastNameIndex).orEmpty().trim()
-            val firstNameRaw = row.cells.getOrNull(firstNameIndex).orEmpty().trim()
+            val lastNameRaw = normalizeName(row.cells.getOrNull(lastNameIndex).orEmpty())
+            val firstNameRaw = normalizeName(row.cells.getOrNull(firstNameIndex).orEmpty())
 
             val birthRaw = row.cells.getOrNull(birthDateIndex).orEmpty()
             val date = parseBirthDate(birthRaw)
@@ -560,4 +561,16 @@ fun BirthdayEditorDialog(
             }
         }
     )
+}
+
+private fun normalizeName(raw: String): String {
+    return raw
+        .trim()
+        .lowercase()
+        .split(Regex("\\s+"))
+        .joinToString(" ") { part ->
+            part.replaceFirstChar { c ->
+                if (c.isLetter()) c.titlecase(Locale.ROOT) else c.toString()
+            }
+        }
 }

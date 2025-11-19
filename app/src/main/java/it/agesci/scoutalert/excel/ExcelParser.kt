@@ -12,6 +12,17 @@ import java.util.Locale
 
 private const val TAG = "ExcelParser"
 
+private fun normalizeName(raw: String): String {
+    return raw
+        .trim()
+        .lowercase()
+        .split(Regex("\\s+"))
+        .joinToString(" ") { part ->
+            part.replaceFirstChar { c ->
+                if (c.isLetter()) c.titlecase(Locale.ROOT) else c.toString()
+            }
+        }
+}
 
 // ---------------------------------------------------
 // EXCEL CELL DATA CONVERSION
@@ -111,8 +122,8 @@ fun parseExcelFromUri(context: Context, uri: Uri): ExcelTable? {
                     return getCellValue(cell, evaluator, formatter)
                 }
 
-                val cognome = getField("cognome")
-                val nome = getField("nome")
+                val cognome = normalizeName(getField("cognome"))
+                val nome = normalizeName(getField("nome"))
 
                 var birthDate: LocalDate? = null
                 headerPositions["datanascita"]?.let { idx ->
