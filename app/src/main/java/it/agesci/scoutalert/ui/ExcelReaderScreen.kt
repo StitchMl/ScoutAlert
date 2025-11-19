@@ -31,6 +31,7 @@ import it.agesci.scoutalert.notifications.BirthdayScheduler
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+@Suppress("KotlinConstantConditions")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExcelReaderScreen() {
@@ -242,7 +243,7 @@ fun ExcelReaderScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Birthday Alert • AGESCI") },
+                title = { Text("Bday Alert") },
                 navigationIcon = {
                     Icon(
                         imageVector = Icons.Default.Cake,
@@ -252,7 +253,10 @@ fun ExcelReaderScreen() {
                 actions = {
 
                     // UPLOAD BUTTON
-                    IconButton(onClick = { isUploadOpen = !isUploadOpen }) {
+                    IconButton(onClick = {
+                        isUploadOpen = !isUploadOpen
+                        Log.d(TAG, "Upload open: $isUploadOpen")
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Upload,
                             contentDescription = if (isUploadOpen)
@@ -265,7 +269,10 @@ fun ExcelReaderScreen() {
                     }
 
                     // NOTIFICATION BUTTON
-                    IconButton(onClick = { isNotificationOpen = !isNotificationOpen }) {
+                    IconButton(onClick = {
+                        isNotificationOpen = !isNotificationOpen
+                        Log.d(TAG, "Notification open: $isNotificationOpen")
+                    }) {
                         Icon(
                             imageVector = Icons.Default.NotificationAdd,
                             contentDescription = if (isNotificationOpen)
@@ -384,6 +391,8 @@ fun ExcelReaderScreen() {
             onDismiss = {
                 isEditorOpen = false
                 editingIndex = null
+                Log.d(TAG, "Editor open: $isEditorOpen")
+                Log.d(TAG, "Editing index: $editingIndex")
             },
             onSave = { newEntry ->
                 val updated = birthdayEntries.toMutableList()
@@ -401,6 +410,8 @@ fun ExcelReaderScreen() {
                 saveBirthdaysToPrefs(context, updated)
                 isEditorOpen = false
                 editingIndex = null
+                Log.d(TAG, "Editor open: $isEditorOpen")
+                Log.d(TAG, "Editing index: $editingIndex")
             },
             onDelete = { entry ->
                 val updated = birthdayEntries.toMutableList()
@@ -409,6 +420,8 @@ fun ExcelReaderScreen() {
                 saveBirthdaysToPrefs(context, updated)
                 isEditorOpen = false
                 editingIndex = null
+                Log.d(TAG, "Editor open: $isEditorOpen")
+                Log.d(TAG, "Editing index: $editingIndex")
             }
         )
     }
@@ -426,6 +439,7 @@ fun BirthdayEditorDialog(
     onSave: (BirthdayEntry) -> Unit,
     onDelete: (BirthdayEntry) -> Unit
 ) {
+    Log.d(TAG, "Available units: $availableUnits")
     var firstName by remember { mutableStateOf(initial?.firstName ?: "") }
     var lastName by remember { mutableStateOf(initial?.lastName ?: "") }
     var unit by remember { mutableStateOf(initial?.unit ?: "") }
@@ -501,12 +515,14 @@ fun BirthdayEditorDialog(
                 val year = yearText.toIntOrNull()
                 if (day == null || month == null || year == null) {
                     error = "Inserisci una data valida (gg/mm/aaaa)"
+                    Log.e(TAG, "$error: $dayText/$monthText/$yearText")
                     return@TextButton
                 }
                 try {
                     LocalDate.of(year, month, day)
                 } catch (_: Exception) {
                     error = "Data non valida"
+                    Log.e(TAG, "$error: $day/$month/$year")
                     return@TextButton
                 }
                 val entry = BirthdayEntry(
@@ -528,7 +544,7 @@ fun BirthdayEditorDialog(
         },
         dismissButton = {
             Row {
-                // ❌ elimina
+                // ❌ delete
                 if (initial != null) {
                     TextButton(onClick = {
                         onDelete(initial)
