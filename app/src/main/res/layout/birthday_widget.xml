@@ -11,7 +11,7 @@
         android:id="@+id/widgetTitleText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Compleanni di oggi"
+        android:text="@string/widget_title"
         android:textStyle="bold"
         android:textColor="@android:color/black"
         android:textSize="16sp" />
@@ -21,7 +21,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="Nessun compleanno"
+        android:text="@string/widget_empty"
         android:textColor="@android:color/darker_gray"
         android:textSize="12sp" />
 
@@ -30,7 +30,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Tap to open the app"
+        android:text="@string/widget_open_app"
         android:textColor="@android:color/black"
         android:textSize="12sp" />
 </LinearLayout>

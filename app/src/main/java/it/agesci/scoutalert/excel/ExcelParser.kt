@@ -5,9 +5,11 @@ import android.net.Uri
 import android.util.Log
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.time.format.ResolverStyle
 import java.util.Locale
 
 private const val TAG = "ExcelParser"
@@ -44,16 +46,14 @@ private fun parseExcelDate(cell: Cell): LocalDate? {
 
 private fun parseStringDate(text: String): LocalDate? {
     val formats = listOf(
-        "dd/MM/yyyy", "d/M/yyyy",
-        "yyyy-MM-dd", "dd-MM-yyyy",
-        "dd.MM.yyyy"
+        "d/M/uuuu", "uuuu-MM-dd", "d-M-uuuu", "d.M.uuuu"
     )
     for (fmt in formats) {
         try {
-            val sdf = SimpleDateFormat(fmt, Locale.getDefault())
-            val date = sdf.parse(text) ?: continue
-            return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-        } catch (_: Exception) { }
+            val formatter = DateTimeFormatter.ofPattern(fmt, Locale.getDefault())
+                .withResolverStyle(ResolverStyle.STRICT)
+            return LocalDate.parse(text.trim(), formatter)
+        } catch (_: DateTimeParseException) { }
     }
     return null
 }
@@ -197,12 +197,18 @@ private fun detectHeaderColumns(headers: List<String>): Map<String, Int> {
         return null
     }
 
-    val map = mutableMapOf<String, Int>()
+    val required = mapOf(
+        "cognome" to findColumn("cognome"),
+        "nome" to findColumn("nome"),
+        "datanascita" to findColumn("nascita", "data")
+    )
+    val missing = required.filterValues { it == null }.keys
+    require(missing.isEmpty()) {
+        "Colonne obbligatorie mancanti: ${missing.joinToString()}"
+    }
 
-    map["cognome"] = findColumn("cognome") as Int
-    map["nome"] = findColumn("nome") as Int  // now safe: never matches inside cognome
-    map["datanascita"] = findColumn("nascita", "data") as Int
-    map["unita"] = findColumn("unita", "unità", "branca", "reparto") as Int
-
-    return map.filterValues { true }.mapValues { it.value }
+    return buildMap {
+        required.forEach { (key, value) -> put(key, requireNotNull(value)) }
+        findColumn("unita", "unità", "branca", "reparto")?.let { put("unita", it) }
+    }
 }

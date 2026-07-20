@@ -3,7 +3,6 @@ package it.agesci.scoutalert.notifications
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -24,21 +23,19 @@ object BirthdayScheduler {
      * You can call it from MainActivity.onCreate().
      */
     fun createNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val manager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // Use the same CHANNEL_ID defined in BirthdayWorker
-            val channel = NotificationChannel(
-                BirthdayWorker.CHANNEL_ID,
-                "Compleanni unità scout",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Notifiche di compleanno per le unità selezionate"
-            }
-
-            manager.createNotificationChannel(channel)
+        // Use the same CHANNEL_ID defined in BirthdayWorker
+        val channel = NotificationChannel(
+            BirthdayWorker.CHANNEL_ID,
+            "Compleanni unità scout",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Notifiche di compleanno per le unità selezionate"
         }
+
+        manager.createNotificationChannel(channel)
     }
 
     /**

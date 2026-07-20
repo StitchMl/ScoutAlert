@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Scout Alert</string>
+    <string name="widget_title">Compleanni di oggi</string>
+    <string name="widget_empty">Nessun compleanno</string>
+    <string name="widget_open_app">Tocca per aprire l’app</string>
 </resources>

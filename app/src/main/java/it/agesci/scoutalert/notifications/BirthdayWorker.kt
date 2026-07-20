@@ -3,11 +3,14 @@ package it.agesci.scoutalert.notifications
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import it.agesci.scoutalert.MainActivity
@@ -110,8 +113,14 @@ class BirthdayWorker(
             .setColor(Color.MAGENTA)
             .build()
 
-        NotificationManagerCompat.from(context)
-            .notify(NOTIFICATION_ID, notification)
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            NotificationManagerCompat.from(context)
+                .notify(NOTIFICATION_ID, notification)
+        }
     }
 
     private fun createChannel(context: Context) {
