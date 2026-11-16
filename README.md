@@ -144,11 +144,20 @@ app/
 
 ## Avvio del progetto
 
-1. Clona la repository.
-2. Apri il progetto con **Android Studio**.
-3. Sincronizza Gradle.
-4. Avvia l'app su un emulatore o un dispositivo Android.
-5. Importa un file Excel contenente i compleanni.
+1. Installa **JDK 17** e Android SDK 36.
+2. Clona la repository e aprila con **Android Studio**.
+3. Sincronizza Gradle e avvia l'app su Android 8.0 (API 26) o successivo.
+4. Importa un file `.xlsx` fino a 10 MB contenente i compleanni.
+
+Da PowerShell, nella root del progetto:
+
+```powershell
+.\gradlew.bat testDebugUnitTest
+.\gradlew.bat lintDebug
+.\gradlew.bat assembleDebug
+```
+
+Su macOS o Linux, usa `./gradlew` al posto di `.\gradlew.bat`.
 
 ## Possibili miglioramenti
 
@@ -156,7 +165,7 @@ app/
 - esportazione/modifica batch dei dati
 - backup su cloud
 - impostazione esplicita dell'orario delle notifiche
-- test automatici per parser, worker e UI
+- test UI e integrazione WorkManager
 - localizzazione completa della UI
 
 ## Stato del repository

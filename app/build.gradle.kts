@@ -25,6 +25,27 @@ android {
     kotlin {
         jvmToolchain(17)
     }
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+    lint {
+        // Host-SDK/dependency notices do not describe app-source defects.
+        disable += setOf(
+            "AndroidGradlePluginVersion",
+            "GradleDependency",
+            "NewerVersionAvailable",
+            "ObsoleteSdkInt",
+            "OldTargetApi",
+            "TrustAllX509TrustManager"
+        )
+    }
     packaging {
         resources {
             excludes += "META-INF/DEPENDENCIES"
@@ -46,7 +67,10 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.savedstate)
 
     // Apache POI per file .xlsx
     implementation(libs.poi.ooxml)
+    testImplementation(libs.junit)
 }

@@ -1,21 +1,21 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Preserve useful release stack traces without exposing source filenames.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Remove verbose development logging from optimized release builds.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Apache POI exposes optional desktop, compression, XPath, logging, and OSGi APIs.
+# Scout Alert uses only OOXML workbook parsing on Android.
+-dontwarn aQute.bnd.annotation.**
+-dontwarn com.github.luben.zstd.**
+-dontwarn edu.umd.cs.findbugs.annotations.**
+-dontwarn java.awt.**
+-dontwarn javax.xml.stream.**
+-dontwarn net.sf.saxon.**
+-dontwarn org.apache.batik.**
+-dontwarn org.osgi.**

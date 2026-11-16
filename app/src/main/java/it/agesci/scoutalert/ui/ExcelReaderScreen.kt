@@ -2,7 +2,6 @@ package it.agesci.scoutalert.ui
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -16,6 +15,7 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,26 +24,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.lifecycle.viewmodel.compose.viewModel
 import it.agesci.scoutalert.excel.BirthdayEntry
-import it.agesci.scoutalert.excel.ExcelTable
-import it.agesci.scoutalert.excel.parseExcelFromUri
 import it.agesci.scoutalert.notifications.BirthdayScheduler
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-@Suppress("KotlinConstantConditions")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExcelReaderScreen() {
+fun ExcelReaderScreen(viewModel: ExcelReaderViewModel = viewModel()) {
     val context = LocalContext.current
 
-    // Main status
-    var table by remember { mutableStateOf<ExcelTable?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedUnit by remember { mutableStateOf<String?>(null) }
+    val table by viewModel.table.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedUnit by viewModel.selectedUnit.collectAsState()
+    val isUploadOpen by viewModel.isUploadOpen.collectAsState()
+    val isNotificationOpen by viewModel.isNotificationOpen.collectAsState()
+    val importedRows by viewModel.importedRows.collectAsState()
+    val skippedRows by viewModel.skippedRows.collectAsState()
+    val isEditorOpen by viewModel.isEditorOpen.collectAsState()
+    val editingIndex by viewModel.editingIndex.collectAsState()
 
     // main list of birthdays (editable) – load from SharedPreferences on first composition
     var birthdayEntries by remember {
@@ -53,9 +56,6 @@ fun ExcelReaderScreen() {
     // panels
     // If there are NO saved birthdays -> upload open
     // If there is already saved data -> upload closed
-    var isUploadOpen by remember { mutableStateOf(birthdayEntries.isEmpty()) }
-    var isNotificationOpen by remember { mutableStateOf(false) }
-
     // notification preferences
     val prefs = remember {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -66,30 +66,13 @@ fun ExcelReaderScreen() {
         )
     }
 
-    // dialog editor status
-    var isEditorOpen by remember { mutableStateOf(false) }
-    var editingIndex by remember { mutableStateOf<Int?>(null) }
-
     // Launcher per l'Excel
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
 
-        try {
-            isLoading = true
-            errorMessage = null
-            val parsed = parseExcelFromUri(context, uri)
-            table = parsed
-            isUploadOpen = false
-            isNotificationOpen = false
-        } catch (t: Throwable) {
-            Log.e(TAG, "Errore nel parse dell'Excel", t)
-            errorMessage = "Impossibile leggere il file Excel."
-            table = null
-        } finally {
-            isLoading = false
-        }
+        viewModel.importFile(uri)
     }
 
     // When the table changes from Excel, I regenerate BirthdayEntry and save it.
@@ -100,13 +83,6 @@ fun ExcelReaderScreen() {
         val firstNameIndex = 1
         val birthDateIndex = 2
         val unitIndex = if (currentTable.headers.size > 3) 3 else null
-
-        Log.d(
-            TAG,
-            "UI indices -> lastName=$lastNameIndex, firstName=$firstNameIndex, " +
-                    "birth=$birthDateIndex, unit=$unitIndex"
-        )
-        Log.d(TAG, "UI headers  -> ${currentTable.headers.joinToString()}")
 
         val entries = currentTable.rows.map { row ->
             val lastNameRaw = normalizeName(row.cells.getOrNull(lastNameIndex).orEmpty())
@@ -255,8 +231,7 @@ fun ExcelReaderScreen() {
 
                     // UPLOAD BUTTON
                     IconButton(onClick = {
-                        isUploadOpen = !isUploadOpen
-                        Log.d(TAG, "Upload open: $isUploadOpen")
+                        viewModel.setUploadOpen(!isUploadOpen)
                     }) {
                         Icon(
                             imageVector = Icons.Default.Upload,
@@ -271,8 +246,7 @@ fun ExcelReaderScreen() {
 
                     // NOTIFICATION BUTTON
                     IconButton(onClick = {
-                        isNotificationOpen = !isNotificationOpen
-                        Log.d(TAG, "Notification open: $isNotificationOpen")
+                        viewModel.setNotificationOpen(!isNotificationOpen)
                     }) {
                         Icon(
                             imageVector = Icons.Default.NotificationAdd,
@@ -295,8 +269,7 @@ fun ExcelReaderScreen() {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    editingIndex = null
-                    isEditorOpen = true
+                    viewModel.openEditor(null)
                 }
             ) {
                 Icon(
@@ -328,13 +301,29 @@ fun ExcelReaderScreen() {
                 if (isUploadOpen) {
                     FilePickerCard(
                         isLoading = isLoading,
-                        onPickFile = { launcher.launch("*/*") },
+                        onPickFile = {
+                            launcher.launch(
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+                        },
                         lastFileLoaded = if (birthdayEntries.isNotEmpty()) "Dati salvati" else null
                     )
 
-                    if (errorMessage != null) {
-                        ErrorCard(errorMessage!!)
+                    errorMessage?.let { message ->
+                        ErrorCard(
+                            message = message,
+                            onDismiss = viewModel::dismissError,
+                            onRetry = { viewModel.retryLastImport() }
+                        )
                     }
+                }
+
+                if (importedRows > 0) {
+                    ImportSummaryCard(
+                        importedRows = importedRows,
+                        skippedRows = skippedRows,
+                        onRetry = { viewModel.retryLastImport() }
+                    )
                 }
 
                 // NOTIFICATIONS
@@ -343,11 +332,8 @@ fun ExcelReaderScreen() {
                         availableUnits = availableUnits,
                         unitsWithNotifications = unitsWithNotifications,
                         onToggleUnit = { unit ->
-                            val current = unitsWithNotifications.toMutableSet()
-                            if (current.contains(unit)) {
-                                current.remove(unit)
-                            } else {
-                                current.add(unit)
+                            val current = unitsWithNotifications.toMutableSet().apply {
+                                if (!remove(unit)) add(unit)
                             }
                             unitsWithNotifications = current
                             prefs.edit { putStringSet(PREFS_UNITS_KEY, current) }
@@ -362,17 +348,16 @@ fun ExcelReaderScreen() {
                 if (persons.isNotEmpty()) {
                     FilterBar(
                         searchQuery = searchQuery,
-                        onSearchChange = { searchQuery = it },
+                        onSearchChange = viewModel::setSearchQuery,
                         selectedUnit = selectedUnit,
                         availableUnits = availableUnits,
-                        onUnitSelected = { selectedUnit = it }
+                        onUnitSelected = viewModel::setSelectedUnit
                     )
 
                     BirthdayListCard(
                         persons = filteredPersons,
                         onPersonClick = { person ->
-                            editingIndex = person.index
-                            isEditorOpen = true
+                            viewModel.openEditor(person.index)
                         }
                     )
                 } else {
@@ -390,39 +375,27 @@ fun ExcelReaderScreen() {
             availableUnits = availableUnits,
             initial = initial,
             onDismiss = {
-                isEditorOpen = false
-                editingIndex = null
-                Log.d(TAG, "Editor open: $isEditorOpen")
-                Log.d(TAG, "Editing index: $editingIndex")
+                viewModel.closeEditor()
             },
             onSave = { newEntry ->
-                val updated = birthdayEntries.toMutableList()
-                if (editingIndex == null) {
-                    updated.add(newEntry)
-                } else {
-                    val idx = editingIndex!!
-                    if (idx in updated.indices) {
-                        updated[idx] = newEntry
+                val updated = birthdayEntries.toMutableList().apply {
+                    val index = editingIndex
+                    if (index != null && index in indices) {
+                        this[index] = newEntry
                     } else {
-                        updated.add(newEntry)
+                        add(newEntry)
                     }
                 }
                 birthdayEntries = updated
                 saveBirthdaysToPrefs(context, updated)
-                isEditorOpen = false
-                editingIndex = null
-                Log.d(TAG, "Editor open: $isEditorOpen")
-                Log.d(TAG, "Editing index: $editingIndex")
+                viewModel.closeEditor()
             },
             onDelete = { entry ->
                 val updated = birthdayEntries.toMutableList()
                 updated.remove(entry)
                 birthdayEntries = updated
                 saveBirthdaysToPrefs(context, updated)
-                isEditorOpen = false
-                editingIndex = null
-                Log.d(TAG, "Editor open: $isEditorOpen")
-                Log.d(TAG, "Editing index: $editingIndex")
+                viewModel.closeEditor()
             }
         )
     }
@@ -440,7 +413,6 @@ fun BirthdayEditorDialog(
     onSave: (BirthdayEntry) -> Unit,
     onDelete: (BirthdayEntry) -> Unit
 ) {
-    Log.d(TAG, "Available units: $availableUnits")
     var firstName by remember { mutableStateOf(initial?.firstName ?: "") }
     var lastName by remember { mutableStateOf(initial?.lastName ?: "") }
     var unit by remember { mutableStateOf(initial?.unit ?: "") }
@@ -516,14 +488,12 @@ fun BirthdayEditorDialog(
                 val year = yearText.toIntOrNull()
                 if (day == null || month == null || year == null) {
                     error = "Inserisci una data valida (gg/mm/aaaa)"
-                    Log.e(TAG, "$error: $dayText/$monthText/$yearText")
                     return@TextButton
                 }
                 try {
                     LocalDate.of(year, month, day)
                 } catch (_: Exception) {
                     error = "Data non valida"
-                    Log.e(TAG, "$error: $day/$month/$year")
                     return@TextButton
                 }
                 val entry = BirthdayEntry(

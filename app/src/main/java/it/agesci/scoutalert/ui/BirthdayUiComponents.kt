@@ -10,12 +10,14 @@ import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,14 +40,7 @@ fun BirthdayHeroHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0xFFFFC107),
-                        Color(0xFFFF80AB)
-                    )
-                )
-            )
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .padding(horizontal = 16.dp, vertical = 20.dp)
     ) {
         Row(
@@ -54,7 +49,7 @@ fun BirthdayHeroHeader(
         ) {
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.2f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
                 ),
                 shape = CardDefaults.shape,
                 modifier = Modifier.size(56.dp)
@@ -66,7 +61,7 @@ fun BirthdayHeroHeader(
                     Icon(
                         imageVector = Icons.Default.Cake,
                         contentDescription = null,
-                        tint = Color.White
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
@@ -75,7 +70,7 @@ fun BirthdayHeroHeader(
                 Text(
                     text = "Compleanni in vista 🎉",
                     style = MaterialTheme.typography.titleMedium.copy(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold
                     )
                 )
@@ -92,7 +87,7 @@ fun BirthdayHeroHeader(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -103,7 +98,7 @@ fun BirthdayHeroHeader(
                     Text(
                         text = todayBirthdayLines.take(3).joinToString("\n"),
                         style = MaterialTheme.typography.bodySmall.copy(
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     )
                 }
@@ -160,6 +155,14 @@ fun FilePickerCard(
                     onClick = onPickFile,
                     enabled = !isLoading
                 ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
                     Text(if (isLoading) "Caricamento..." else "Seleziona file")
                 }
             }
@@ -213,7 +216,8 @@ fun FilePickerCard(
                     TextButton(
                         onClick = onPickFile,
                         enabled = !isLoading,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.heightIn(min = 48.dp)
                     ) {
                         Text("Ricarica", style = MaterialTheme.typography.bodySmall)
                     }
@@ -289,7 +293,7 @@ fun NotificationSettingsCard(
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             border = null,
-                            modifier = Modifier.height(36.dp)
+                            modifier = Modifier.heightIn(min = 48.dp)
                         )
                     }
                 }
@@ -320,6 +324,7 @@ fun NotificationSettingsCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FilterBar(
     searchQuery: String,
@@ -355,13 +360,14 @@ fun FilterBar(
                 )
             }
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 AssistChip(
                     onClick = { onUnitSelected(null) },
-                    label = { Text("All") },
+                    label = { Text("Tutte") },
                     colors = AssistChipDefaults.assistChipColors(
                         containerColor = if (selectedUnit == null)
                             MaterialTheme.colorScheme.primary
@@ -371,7 +377,8 @@ fun FilterBar(
                             MaterialTheme.colorScheme.onPrimary
                         else
                             MaterialTheme.colorScheme.onSurface
-                    )
+                    ),
+                    modifier = Modifier.heightIn(min = 48.dp)
                 )
 
                 availableUnits.forEach { unit ->
@@ -391,7 +398,8 @@ fun FilterBar(
                                 MaterialTheme.colorScheme.onPrimary
                             else
                                 MaterialTheme.colorScheme.onSurface
-                        )
+                        ),
+                        modifier = Modifier.heightIn(min = 48.dp)
                     )
                 }
             }
@@ -407,7 +415,7 @@ fun BirthdayListCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
@@ -415,7 +423,7 @@ fun BirthdayListCard(
             modifier = Modifier.padding(8.dp)
         ) {
             Text(
-                text = "Birthdays found (${persons.size})",
+                text = "Compleanni trovati (${persons.size})",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 ),
@@ -424,7 +432,7 @@ fun BirthdayListCard(
 
             if (persons.isEmpty()) {
                 Text(
-                    text = "No results with the current filters.",
+                    text = "Nessun risultato con i filtri correnti.",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
@@ -436,7 +444,10 @@ fun BirthdayListCard(
                         .padding(bottom = 23.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(persons) { person ->
+                    items(
+                        items = persons,
+                        key = { person -> person.index }
+                    ) { person ->
                         BirthdayRow(
                             person = person,
                             onClick = { onPersonClick(person) }
@@ -456,9 +467,10 @@ fun BirthdayRow(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFFFFF)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -518,7 +530,7 @@ fun EmptyStateCard() {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "No files uploaded",
+                text = "Nessun compleanno salvato",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 )
@@ -532,30 +544,105 @@ fun EmptyStateCard() {
 }
 
 @Composable
-fun ErrorCard(message: String) {
+fun ErrorCard(
+    message: String,
+    onDismiss: () -> Unit,
+    onRetry: (() -> Unit)? = null
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Polite },
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFCDD2)
+            containerColor = MaterialTheme.colorScheme.errorContainer
         ),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Errore",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                )
+                if (onRetry != null) {
+                    TextButton(
+                        onClick = onRetry,
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
+                        Text("Riprova")
+                    }
+                }
+            }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Chiudi errore",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ImportSummaryCard(
+    importedRows: Int,
+    skippedRows: Int,
+    onRetry: () -> Unit
+) {
+    val hasSkippedRows = skippedRows > 0
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Polite },
+        colors = CardDefaults.cardColors(
+            containerColor = if (hasSkippedRows) {
+                MaterialTheme.colorScheme.tertiaryContainer
+            } else {
+                MaterialTheme.colorScheme.secondaryContainer
+            },
+            contentColor = if (hasSkippedRows) {
+                MaterialTheme.colorScheme.onTertiaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            }
+        )
+    ) {
         Column(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Error",
-                style = MaterialTheme.typography.titleSmall.copy(
-                    color = Color(0xFFB71C1C),
-                    fontWeight = FontWeight.Bold
-                )
+                text = if (hasSkippedRows) "Importazione parziale" else "Importazione completata",
+                style = MaterialTheme.typography.titleSmall
             )
             Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = Color(0xFFB71C1C)
-                )
+                text = "$importedRows righe importate, $skippedRows ignorate.",
+                style = MaterialTheme.typography.bodyMedium
             )
+            if (hasSkippedRows) {
+                TextButton(
+                    onClick = onRetry,
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
+                    Text("Scegli un altro file")
+                }
+            }
         }
     }
 }

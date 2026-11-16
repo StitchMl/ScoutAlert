@@ -11,8 +11,11 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.format.ResolverStyle
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val TAG = "ExcelParser"
+private const val MAX_IMPORTED_ROWS = 10_000
 
 private fun normalizeName(raw: String): String {
     return raw
@@ -79,19 +82,24 @@ private fun getCellValue(
 // ---------------------------------------------------
 // MAIN PARSER
 // ---------------------------------------------------
-fun parseExcelFromUri(context: Context, uri: Uri): ExcelTable? {
-    return try {
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+suspend fun parseExcelFromUri(context: Context, uri: Uri): ExcelTable =
+    withContext(Dispatchers.IO) { parseExcelBlocking(context, uri) }
 
-            val workbook = XSSFWorkbook(inputStream)
+private fun parseExcelBlocking(context: Context, uri: Uri): ExcelTable {
+    ExcelInputValidator.validate(context, uri)
+    val inputStream = context.contentResolver.openInputStream(uri)
+        ?: throw ExcelParseException("Impossibile aprire il file selezionato")
+
+    try {
+        return inputStream.use { stream ->
+            XSSFWorkbook(stream).use { workbook ->
             val sheet = workbook.getSheetAt(0)
             val evaluator = workbook.creationHelper.createFormulaEvaluator()
             val formatter = DataFormatter()
 
             val rowIterator = sheet.iterator()
             if (!rowIterator.hasNext()) {
-                workbook.close()
-                return null
+                throw ExcelParseException("Il primo foglio del file è vuoto")
             }
 
             // 1) HEADER (first line)
@@ -101,114 +109,101 @@ fun parseExcelFromUri(context: Context, uri: Uri): ExcelTable? {
             }
             Log.d(TAG, "Original headers: ${headers.joinToString(" | ")}")
 
-            val headerPositions = detectHeaderColumns(headers)
+            val columns = detectExcelColumns(headers)
 
             Log.d(TAG, "---- HEADER POSITIONS (NEW SMART MATCH) ----")
-            headerPositions.forEach { (key, idx) ->
-                Log.d(TAG, "$key -> index=$idx header='${headers[idx]}'")
-            }
+            Log.d(TAG, "Detected columns: $columns")
             Log.d(TAG, "------------------------------------------------")
 
 
             // ---- 2) BETWEEN THE LINES ----
-            val rows = mutableListOf<ExcelRow>()
+            val rows = linkedSetOf<ExcelRow>()
+            var skippedRows = 0
+            var processedRows = 0
 
             while (rowIterator.hasNext()) {
                 val row = rowIterator.next()
-
-                fun getField(key: String): String {
-                    val idx = headerPositions[key] ?: return ""
-                    val cell = row.getCell(idx) ?: return ""
-                    return getCellValue(cell, evaluator, formatter)
+                processedRows++
+                if (processedRows > MAX_IMPORTED_ROWS) {
+                    skippedRows++
+                    continue
                 }
 
-                val cognome = normalizeName(getField("cognome"))
-                val nome = normalizeName(getField("nome"))
-
-                var birthDate: LocalDate? = null
-                headerPositions["datanascita"]?.let { idx ->
-                    val cell = row.getCell(idx)
-                    if (cell != null) {
-                        birthDate = parseExcelDate(cell)
-                            ?: parseStringDate(getCellValue(cell, evaluator, formatter))
-                    }
+                when (val result = parseRow(row, columns, evaluator, formatter)) {
+                    RowParseResult.Blank -> Unit
+                    RowParseResult.Invalid -> skippedRows++
+                    is RowParseResult.Valid -> rows += result.row
                 }
-
-                val unita = getField("unita")
-
-                // skip blank lines
-                if (cognome.isBlank() && nome.isBlank() && birthDate == null) continue
-
-                rows.add(
-                    ExcelRow(
-                        listOf(
-                            cognome,
-                            nome,
-                            birthDate?.toString() ?: "",
-                            unita
-                        )
-                    )
-                )
-                Log.d(TAG, "Parsed row: cognome='$cognome' nome='$nome' unit='$unita' birth=$birthDate")
             }
 
-            workbook.close()
-            Log.d(TAG, "Final lines parsed: ${rows.size}")
-
-            // Removes duplicates of last name+first name+date
-            val distinct = rows.distinctBy { it.cells.joinToString("|") }
+            Log.d(TAG, "Rows imported=${rows.size}, skipped=$skippedRows")
 
             ExcelTable(
                 headers = listOf("Cognome", "Nome", "Data", "Unità"),
-                rows = distinct
+                rows = rows.toList(),
+                skippedRows = skippedRows
             )
+            }
         }
+    } catch (e: ExcelParseException) {
+        throw e
+    } catch (e: IllegalArgumentException) {
+        throw ExcelParseException(e.message ?: "Intestazioni Excel non valide", e)
     } catch (e: Exception) {
         Log.e(TAG, "Excel parsing error", e)
-        null
+        throw ExcelParseException("Il file non è un documento Excel valido", e)
     }
 }
 
-// ---------------------------------------------------
-// NEW HEADER DETECTION (fixes "nome" inside "cognome")
-// ---------------------------------------------------
-private fun detectHeaderColumns(headers: List<String>): Map<String, Int> {
-    fun normalizeForWords(h: String): List<String> =
-        h.lowercase()
-            .replace(Regex("[^a-z0-9 ]"), " ")
-            .trim()
-            .split(Regex("\\s+"))
-            .filter { it.isNotBlank() }
+class ExcelParseException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
-    val wordsList = headers.map { normalizeForWords(it) }
+internal sealed interface RowParseResult {
+    data object Blank : RowParseResult
+    data object Invalid : RowParseResult
+    data class Valid(val row: ExcelRow) : RowParseResult
+}
 
-    fun findExactWord(word: String): Int? {
-        wordsList.forEachIndexed { idx, words ->
-            if (word in words) return idx
-        }
-        return null
+private fun parseRow(
+    row: Row,
+    columns: ExcelColumns,
+    evaluator: FormulaEvaluator,
+    formatter: DataFormatter
+): RowParseResult = try {
+    fun field(index: Int?): String = index?.let { column ->
+        row.getCell(column)?.let { getCellValue(it, evaluator, formatter) }
+    }.orEmpty()
+
+    val lastName = field(columns.lastName)
+    val firstName = field(columns.firstName)
+    val rawBirthDate = field(columns.birthDate)
+    val unit = field(columns.unit)
+    val birthCell = row.getCell(columns.birthDate)
+    val excelBirthDate = birthCell?.let(::parseExcelDate)
+
+    parseRowValues(lastName, firstName, rawBirthDate, unit, excelBirthDate)
+} catch (error: RuntimeException) {
+    Log.w(TAG, "Skipping invalid row ${row.rowNum + 1}", error)
+    RowParseResult.Invalid
+}
+
+internal fun parseRowValues(
+    lastNameRaw: String,
+    firstNameRaw: String,
+    rawBirthDate: String,
+    unit: String,
+    excelBirthDate: LocalDate? = null
+): RowParseResult {
+    val lastName = normalizeName(lastNameRaw)
+    val firstName = normalizeName(firstNameRaw)
+
+    if (lastName.isBlank() && firstName.isBlank() && rawBirthDate.isBlank() && unit.isBlank()) {
+        return RowParseResult.Blank
     }
 
-    fun findColumn(vararg candidates: String): Int? {
-        for (candidate in candidates) {
-            val idx = findExactWord(candidate)
-            if (idx != null) return idx
-        }
-        return null
-    }
-
-    val required = mapOf(
-        "cognome" to findColumn("cognome"),
-        "nome" to findColumn("nome"),
-        "datanascita" to findColumn("nascita", "data")
-    )
-    val missing = required.filterValues { it == null }.keys
-    require(missing.isEmpty()) {
-        "Colonne obbligatorie mancanti: ${missing.joinToString()}"
-    }
-
-    return buildMap {
-        required.forEach { (key, value) -> put(key, requireNotNull(value)) }
-        findColumn("unita", "unità", "branca", "reparto")?.let { put("unita", it) }
+    val birthDate = excelBirthDate ?: parseStringDate(rawBirthDate)
+    return if ((lastName.isBlank() && firstName.isBlank()) || birthDate == null) {
+        RowParseResult.Invalid
+    } else {
+        RowParseResult.Valid(ExcelRow(listOf(lastName, firstName, birthDate.toString(), unit)))
     }
 }

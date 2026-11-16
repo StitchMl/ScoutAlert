@@ -8,7 +8,8 @@ data class ExcelRow(
 // Complete table
 data class ExcelTable(
     val headers: List<String>,
-    val rows: List<ExcelRow>
+    val rows: List<ExcelRow>,
+    val skippedRows: Int = 0
 )
 
 /**
