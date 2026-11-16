@@ -19,3 +19,26 @@
 -dontwarn net.sf.saxon.**
 -dontwarn org.apache.batik.**
 -dontwarn org.osgi.**
+
+# Preserve Apache POI & XMLBeans package/class names for .xsb schema resolution
+-keep class org.apache.poi.** { *; }
+-keep class org.apache.xmlbeans.** { *; }
+-keep class org.openxmlformats.schemas.** { *; }
+-keep class com.microsoft.schemas.** { *; }
+-keep class org.etsi.uri.** { *; }
+-keep class org.w3.** { *; }
+-keep class schemaorg_apache_xmlbeans.** { *; }
+-keep class com.zaxxer.sparsebits.** { *; }
+-keep class org.apache.commons.compress.** { *; }
+-keep class org.apache.commons.io.** { *; }
+
+-dontwarn org.apache.poi.**
+-dontwarn org.apache.xmlbeans.**
+-dontwarn org.openxmlformats.schemas.**
+-dontwarn com.microsoft.schemas.**
+-dontwarn org.etsi.uri.**
+-dontwarn org.w3.**
+-dontwarn javax.xml.**
+-dontwarn java.awt.**
+-dontwarn javax.imageio.**
+-dontwarn org.slf4j.**
