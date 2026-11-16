@@ -82,4 +82,22 @@ class ExcelSchemaTest {
         assertEquals(0, columns.fullName)
         assertEquals("Mario" to "Rossi Bianchi", splitFullName("Mario\tRossi Bianchi"))
     }
+
+    @Test
+    fun `manual unit fills missing values and preserves sheet values`() {
+        assertEquals("EG", resolveUnit(null, "  EG  "))
+        assertEquals("RS", resolveUnit("RS", "EG"))
+
+        val table = ExcelTable(
+            headers = listOf("Cognome", "Nome", "Data", "Unità"),
+            rows = listOf(
+                ExcelRow(listOf("Rossi", "Mario", "2010-01-02", "")),
+                ExcelRow(listOf("Bianchi", "Anna", "2011-03-04", "LC"))
+            )
+        ).withManualUnit("EG")
+
+        assertEquals("EG", table.rows[0].cells[3])
+        assertEquals("LC", table.rows[1].cells[3])
+        assertEquals("RS", table.withManualUnit("RS").rows[0].cells[3])
+    }
 }

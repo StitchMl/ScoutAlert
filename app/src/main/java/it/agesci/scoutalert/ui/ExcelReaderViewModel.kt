@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import it.agesci.scoutalert.excel.ExcelParseException
 import it.agesci.scoutalert.excel.ExcelTable
 import it.agesci.scoutalert.excel.parseExcelFromUri
+import it.agesci.scoutalert.excel.withManualUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ class ExcelReaderViewModel(
     val skippedRows = savedStateHandle.getStateFlow(SKIPPED_ROWS, 0)
     val isEditorOpen = savedStateHandle.getStateFlow(IS_EDITOR_OPEN, false)
     val editingIndex = savedStateHandle.getStateFlow<Int?>(EDITING_INDEX, null)
+    val manualUnit = savedStateHandle.getStateFlow(MANUAL_UNIT, "")
 
     private val _table = MutableStateFlow<ExcelTable?>(null)
     val table: StateFlow<ExcelTable?> = _table.asStateFlow()
@@ -51,6 +53,10 @@ class ExcelReaderViewModel(
     fun setSelectedUnit(value: String?) = savedStateHandle.set(SELECTED_UNIT, value)
     fun setUploadOpen(value: Boolean) = savedStateHandle.set(IS_UPLOAD_OPEN, value)
     fun setNotificationOpen(value: Boolean) = savedStateHandle.set(IS_NOTIFICATION_OPEN, value)
+    fun setManualUnit(value: String) {
+        savedStateHandle[MANUAL_UNIT] = value
+        _table.value = _table.value?.withManualUnit(value)
+    }
     fun openEditor(index: Int?) {
         savedStateHandle[EDITING_INDEX] = index
         savedStateHandle[IS_EDITOR_OPEN] = true
@@ -68,7 +74,7 @@ class ExcelReaderViewModel(
             _isLoading.value = true
             setError(null)
             try {
-                val parsed = parseExcelFromUri(getApplication(), uri)
+                val parsed = parseExcelFromUri(getApplication(), uri, manualUnit.value)
                 if (parsed.rows.isEmpty()) {
                     setError("Il file non contiene compleanni validi.")
                     setUploadOpen(true)
@@ -117,6 +123,7 @@ class ExcelReaderViewModel(
         const val SKIPPED_ROWS = "skippedRows"
         const val IS_EDITOR_OPEN = "isEditorOpen"
         const val EDITING_INDEX = "editingIndex"
+        const val MANUAL_UNIT = "manualUnit"
         const val PREFS_NAME = "birthdays_prefs"
         const val BIRTHDAYS_KEY = "birthdays_json"
     }

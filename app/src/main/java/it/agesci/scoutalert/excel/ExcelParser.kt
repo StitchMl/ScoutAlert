@@ -82,10 +82,15 @@ private fun getCellValue(
 // ---------------------------------------------------
 // MAIN PARSER
 // ---------------------------------------------------
-suspend fun parseExcelFromUri(context: Context, uri: Uri): ExcelTable =
-    withContext(Dispatchers.IO) { parseExcelBlocking(context, uri) }
+suspend fun parseExcelFromUri(
+    context: Context,
+    uri: Uri,
+    manualUnit: String? = null
+): ExcelTable = withContext(Dispatchers.IO) {
+    parseExcelBlocking(context, uri, manualUnit)
+}
 
-private fun parseExcelBlocking(context: Context, uri: Uri): ExcelTable {
+private fun parseExcelBlocking(context: Context, uri: Uri, manualUnit: String?): ExcelTable {
     ExcelInputValidator.validate(context, uri)
     val inputStream = context.contentResolver.openInputStream(uri)
         ?: throw ExcelParseException("Impossibile aprire il file selezionato")
@@ -130,7 +135,7 @@ private fun parseExcelBlocking(context: Context, uri: Uri): ExcelTable {
                     continue
                 }
 
-                when (val result = parseRow(row, columns, evaluator, formatter)) {
+                when (val result = parseRow(row, columns, evaluator, formatter, manualUnit)) {
                     RowParseResult.Blank -> Unit
                     RowParseResult.Invalid -> skippedRows++
                     is RowParseResult.Valid -> rows += result.row
@@ -168,7 +173,8 @@ private fun parseRow(
     row: Row,
     columns: ExcelColumns,
     evaluator: FormulaEvaluator,
-    formatter: DataFormatter
+    formatter: DataFormatter,
+    manualUnit: String?
 ): RowParseResult = try {
     fun field(index: Int?): String = index?.let { column ->
         row.getCell(column)?.let { getCellValue(it, evaluator, formatter) }
@@ -185,7 +191,7 @@ private fun parseRow(
     val birthCell = row.getCell(columns.birthDate)
     val excelBirthDate = birthCell?.let(::parseExcelDate)
 
-    parseRowValues(lastName, firstName, rawBirthDate, unit, excelBirthDate)
+    parseRowValues(lastName, firstName, rawBirthDate, unit, excelBirthDate, manualUnit)
 } catch (error: RuntimeException) {
     Log.w(TAG, "Skipping invalid row ${row.rowNum + 1}", error)
     RowParseResult.Invalid
@@ -201,7 +207,8 @@ internal fun parseRowValues(
     firstNameRaw: String,
     rawBirthDate: String,
     unit: String,
-    excelBirthDate: LocalDate? = null
+    excelBirthDate: LocalDate? = null,
+    manualUnit: String? = null
 ): RowParseResult {
     val lastName = normalizeName(lastNameRaw)
     val firstName = normalizeName(firstNameRaw)
@@ -214,6 +221,33 @@ internal fun parseRowValues(
     return if ((lastName.isBlank() && firstName.isBlank()) || birthDate == null) {
         RowParseResult.Invalid
     } else {
-        RowParseResult.Valid(ExcelRow(listOf(lastName, firstName, birthDate.toString(), unit)))
+        val resolvedUnit = resolveUnit(unit, manualUnit)
+        RowParseResult.Valid(
+            ExcelRow(
+                cells = listOf(lastName, firstName, birthDate.toString(), resolvedUnit),
+                unitFromManualFallback = unit.isBlank() && resolvedUnit.isNotBlank()
+            )
+        )
     }
+}
+
+internal fun resolveUnit(sheetUnit: String?, manualUnit: String?): String =
+    sheetUnit?.trim().takeUnless { it.isNullOrEmpty() }
+        ?: manualUnit?.trim().orEmpty()
+
+internal fun ExcelTable.withManualUnit(manualUnit: String?): ExcelTable {
+    val fallback = manualUnit?.trim().orEmpty()
+    return copy(
+        rows = rows.map { row ->
+            val currentUnit = row.cells.getOrNull(3).orEmpty()
+            if (!row.unitFromManualFallback && currentUnit.isNotBlank()) return@map row
+            row.copy(
+                cells = row.cells.toMutableList().apply {
+                    while (size <= 3) add("")
+                    this[3] = fallback
+                },
+                unitFromManualFallback = fallback.isNotBlank()
+            )
+        }
+    )
 }

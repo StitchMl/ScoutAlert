@@ -2,7 +2,8 @@ package it.agesci.scoutalert.excel
 
 // Each row: values in order, aligned with headers
 data class ExcelRow(
-    val cells: List<String>
+    val cells: List<String>,
+    val unitFromManualFallback: Boolean = false
 )
 
 // Complete table

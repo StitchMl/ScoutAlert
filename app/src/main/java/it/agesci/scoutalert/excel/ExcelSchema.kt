@@ -70,5 +70,5 @@ internal fun detectExcelColumns(headers: List<String>): ExcelColumns {
     )
 }
 
-private val PARENT_WORDS = setOf("genitore", "madre", "padre")
+private val PARENT_WORDS = setOf("genitore", "genitori", "madre", "padre")
 private val SCOUT_WORDS = setOf("censito", "ragazzo")

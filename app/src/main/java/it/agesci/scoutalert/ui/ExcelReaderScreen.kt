@@ -31,7 +31,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ExcelReaderScreen(viewModel: ExcelReaderViewModel = viewModel()) {
     val context = LocalContext.current
@@ -47,6 +47,7 @@ fun ExcelReaderScreen(viewModel: ExcelReaderViewModel = viewModel()) {
     val skippedRows by viewModel.skippedRows.collectAsState()
     val isEditorOpen by viewModel.isEditorOpen.collectAsState()
     val editingIndex by viewModel.editingIndex.collectAsState()
+    val manualUnit by viewModel.manualUnit.collectAsState()
 
     // main list of birthdays (editable) – load from SharedPreferences on first composition
     var birthdayEntries by remember {
@@ -299,6 +300,25 @@ fun ExcelReaderScreen(viewModel: ExcelReaderViewModel = viewModel()) {
 
                 // UPLOAD
                 if (isUploadOpen) {
+                    OutlinedTextField(
+                        value = manualUnit,
+                        onValueChange = viewModel::setManualUnit,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Unità (opzionale)") },
+                        supportingText = { Text("Usata quando il file non indica l’unità") },
+                        singleLine = true
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf("LC", "EG", "RS", "CoCa").forEach { unit ->
+                            AssistChip(
+                                onClick = { viewModel.setManualUnit(unit) },
+                                label = { Text(unit) }
+                            )
+                        }
+                    }
                     FilePickerCard(
                         isLoading = isLoading,
                         onPickFile = {
