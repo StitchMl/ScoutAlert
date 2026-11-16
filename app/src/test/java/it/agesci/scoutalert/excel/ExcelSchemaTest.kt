@@ -16,6 +16,7 @@ class ExcelSchemaTest {
         assertEquals(1, columns.firstName)
         assertEquals(2, columns.birthDate)
         assertEquals(3, columns.unit)
+        assertNull(columns.fullName)
     }
 
     @Test
@@ -41,8 +42,44 @@ class ExcelSchemaTest {
         }
 
         assertEquals(
-            "Colonne obbligatorie mancanti: cognome, data di nascita",
+            "Colonne obbligatorie mancanti: nome/cognome o nominativo, data di nascita",
             error.message
         )
+    }
+
+    @Test
+    fun `finds scout headers after banner and ignores parent columns`() {
+        val header = detectExcelHeader(
+            listOf(
+                listOf("Elenco Genitori Branca E/G"),
+                emptyList(),
+                listOf(
+                    "Nome del genitore",
+                    "Nascita del genitore",
+                    "Cognome del censito",
+                    "Nome del censito",
+                    "Nascita del censito",
+                    "Branca"
+                )
+            )
+        )
+
+        assertEquals(2, header.rowIndex)
+        assertEquals(2, header.columns.lastName)
+        assertEquals(3, header.columns.firstName)
+        assertEquals(4, header.columns.birthDate)
+        assertEquals(5, header.columns.unit)
+    }
+
+    @Test
+    fun `supports one combined scout name column`() {
+        val columns = detectExcelColumns(
+            listOf("Ragazzo", "Data di nascita", "Unità")
+        )
+
+        assertNull(columns.firstName)
+        assertNull(columns.lastName)
+        assertEquals(0, columns.fullName)
+        assertEquals("Mario" to "Rossi Bianchi", splitFullName("Mario\tRossi Bianchi"))
     }
 }

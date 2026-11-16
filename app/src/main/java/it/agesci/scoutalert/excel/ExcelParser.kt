@@ -97,19 +97,20 @@ private fun parseExcelBlocking(context: Context, uri: Uri): ExcelTable {
             val evaluator = workbook.creationHelper.createFormulaEvaluator()
             val formatter = DataFormatter()
 
-            val rowIterator = sheet.iterator()
-            if (!rowIterator.hasNext()) {
+            if (sheet.physicalNumberOfRows == 0) {
                 throw ExcelParseException("Il primo foglio del file è vuoto")
             }
 
-            // 1) HEADER (first line)
-            val headerRow = rowIterator.next()
-            val headers = headerRow.map { cell ->
-                getCellValue(cell, evaluator, formatter)
+            val candidateHeaders = (0 until minOf(10, sheet.lastRowNum + 1)).map { rowIndex ->
+                sheet.getRow(rowIndex)?.let { row ->
+                    val lastColumn = row.lastCellNum.toInt().coerceAtLeast(0)
+                    (0 until lastColumn).map { column ->
+                        row.getCell(column)?.let { getCellValue(it, evaluator, formatter) }.orEmpty()
+                    }
+                }.orEmpty()
             }
-            Log.d(TAG, "Original headers: ${headers.joinToString(" | ")}")
-
-            val columns = detectExcelColumns(headers)
+            val header = detectExcelHeader(candidateHeaders)
+            val columns = header.columns
 
             Log.d(TAG, "---- HEADER POSITIONS (NEW SMART MATCH) ----")
             Log.d(TAG, "Detected columns: $columns")
@@ -121,8 +122,8 @@ private fun parseExcelBlocking(context: Context, uri: Uri): ExcelTable {
             var skippedRows = 0
             var processedRows = 0
 
-            while (rowIterator.hasNext()) {
-                val row = rowIterator.next()
+            for (rowIndex in (header.rowIndex + 1)..sheet.lastRowNum) {
+                val row = sheet.getRow(rowIndex) ?: continue
                 processedRows++
                 if (processedRows > MAX_IMPORTED_ROWS) {
                     skippedRows++
@@ -173,8 +174,12 @@ private fun parseRow(
         row.getCell(column)?.let { getCellValue(it, evaluator, formatter) }
     }.orEmpty()
 
-    val lastName = field(columns.lastName)
-    val firstName = field(columns.firstName)
+    val combinedName = field(columns.fullName)
+    val (firstName, lastName) = if (columns.fullName != null) {
+        splitFullName(combinedName)
+    } else {
+        field(columns.firstName) to field(columns.lastName)
+    }
     val rawBirthDate = field(columns.birthDate)
     val unit = field(columns.unit)
     val birthCell = row.getCell(columns.birthDate)
@@ -184,6 +189,11 @@ private fun parseRow(
 } catch (error: RuntimeException) {
     Log.w(TAG, "Skipping invalid row ${row.rowNum + 1}", error)
     RowParseResult.Invalid
+}
+
+internal fun splitFullName(raw: String): Pair<String, String> {
+    val tokens = raw.trim().split(Regex("\\s+")).filter(String::isNotBlank)
+    return tokens.firstOrNull().orEmpty() to tokens.drop(1).joinToString(" ")
 }
 
 internal fun parseRowValues(
